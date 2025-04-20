@@ -1,0 +1,1 @@
+User Query → Intent Analyzer → Decision Router → AI Processing or Web Search → Response

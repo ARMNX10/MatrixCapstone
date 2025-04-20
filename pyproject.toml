@@ -1,0 +1,18 @@
+[project]
+name = "logai"
+version = "0.1.0"
+description = "Listing all dependencies"
+authors = [
+    {name = "Aarav Maan",email = "aaravmaan24@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv (>=1.0.1,<2.0.0)",
+    "google-genai (>=1.5.0,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
