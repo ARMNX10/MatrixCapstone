@@ -1,12 +1,12 @@
 import os
 from typing import Dict, List, Any, TypedDict
-import google.generativeai as genai
+from model_config import get_groq_client, get_model_config
 from dotenv import load_dotenv
 from loguru import logger
 
 # Load environment variables
 load_dotenv()
-API_KEY = os.getenv("GEMINI_API_KEY")
+
 
 class IntentAnalysisResult(TypedDict):
     intent: str
@@ -19,79 +19,62 @@ class IntentAnalysisResult(TypedDict):
 def analyze_intent(query: str) -> IntentAnalysisResult:
     """
     Analyze the intent of a user query to determine if it requires web search or AI processing.
-    
     Args:
         query: The user's query string
-        
     Returns:
         IntentAnalysisResult: Analysis of the query intent
     """
-    # Configure the model
-    generation_config = {
-        "temperature": 0.2,  # Lower temperature for more deterministic output
-        "top_p": 0.95,
-        "max_output_tokens": 2048,
-    }
-    
-    # Initialize the model
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
-        generation_config=generation_config
+    config = get_model_config()
+    client = get_groq_client()
+    system_prompt = (
+        "You are an intent analysis system. Your job is to analyze the user's query and determine: "
+        "1. The primary intent of the query\n"
+        "2. Whether the query requires web search (factual, current events, specific information)\n"
+        "3. Whether the query is complex (multiple aspects, requires reasoning, hypothetical scenarios)\n"
+        "4. Key entities mentioned in the query\n"
+        "5. Main topics of the query\n"
+        "\nFormat your response as a valid JSON object with the following structure:\n"
+        "{\n"
+        "  \"intent\": \"string - brief description of primary intent\",\n"
+        "  \"confidence\": float between 0 and 1,\n"
+        "  \"requires_web_search\": boolean,\n"
+        "  \"is_complex_query\": boolean,\n"
+        "  \"entities\": [\"list\", \"of\", \"entities\"],\n"
+        "  \"topics\": [\"list\", \"of\", \"topics\"]\n"
+        "}\n"
+        "\nGuidelines:\n- Direct factual questions typically require web search\n"
+        "- Questions about current events require web search\n"
+        "- Complex reasoning questions typically don't require web search\n"
+        "- Creative or hypothetical questions don't require web search\n"
+        "- Personal advice questions don't require web search\n"
+        "- Code-related questions don't require web search unless asking about specific libraries or documentation\n"
     )
-    
-    # Create the system prompt for intent analysis
-    system_prompt = """You are an intent analysis system. Your job is to analyze the user's query and determine:
-1. The primary intent of the query
-2. Whether the query requires web search (factual, current events, specific information)
-3. Whether the query is complex (multiple aspects, requires reasoning, hypothetical scenarios)
-4. Key entities mentioned in the query
-5. Main topics of the query
-
-Format your response as a valid JSON object with the following structure:
-{
-  "intent": "string - brief description of primary intent",
-  "confidence": float between 0 and 1,
-  "requires_web_search": boolean,
-  "is_complex_query": boolean,
-  "entities": ["list", "of", "entities"],
-  "topics": ["list", "of", "topics"]
-}
-
-Guidelines:
-- Direct factual questions typically require web search
-- Questions about current events require web search
-- Complex reasoning questions typically don't require web search
-- Creative or hypothetical questions don't require web search
-- Personal advice questions don't require web search
-- Code-related questions don't require web search unless asking about specific libraries or documentation
-"""
-    
-    # Generate the analysis
     prompt = f"{system_prompt}\n\nAnalyze this query: {query}"
-    response = model.generate_content(prompt)
-    
-    # Extract the JSON from the response
+    completion = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": prompt}],
+        temperature=config["temperature"],
+        top_p=config["top_p"],
+        max_completion_tokens=config["max_completion_tokens"],
+        stream=config["stream"],
+        stop=config["stop"]
+    )
+    response_text = ""
+    for chunk in completion:
+        response_text += chunk.choices[0].delta.content or ""
     import json
-    import re
-    
-    # Find JSON pattern in the response
-    json_match = re.search(r'({.*})', response.text, re.DOTALL)
-    if json_match:
-        try:
-            analysis = json.loads(json_match.group(1))
-            return IntentAnalysisResult(
-                intent=analysis.get("intent", ""),
-                confidence=analysis.get("confidence", 0.0),
-                requires_web_search=analysis.get("requires_web_search", False),
-                is_complex_query=analysis.get("is_complex_query", False),
-                entities=analysis.get("entities", []),
-                topics=analysis.get("topics", [])
-            )
-        except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
-            pass
-    
-    # Default fallback response
+    try:
+        analysis = json.loads(response_text)
+        return IntentAnalysisResult(
+            intent=analysis.get("intent", "unknown"),
+            confidence=analysis.get("confidence", 0.0),
+            requires_web_search=analysis.get("requires_web_search", False),
+            is_complex_query=analysis.get("is_complex_query", False),
+            entities=analysis.get("entities", []),
+            topics=analysis.get("topics", [])
+        )
+    except json.JSONDecodeError:
+        pass
     return IntentAnalysisResult(
         intent="unknown",
         confidence=0.0,
@@ -100,6 +83,7 @@ Guidelines:
         entities=[],
         topics=[]
     )
+
 
 # Function to be used in the LangGraph node
 def intent_analyzer_node(state: Dict[str, Any]) -> Dict[str, Any]:

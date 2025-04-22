@@ -1,18 +1,15 @@
 import os
-import sys
 import time
 import random
-import webbrowser
 import speech_recognition as sr
 import pyttsx3
 from dotenv import load_dotenv
 from langraph_app import build_graph, AgentState  # Reuse your LangGraph workflow
 import subprocess
-import shutil
 
 # --- Config ---
 load_dotenv()
-MUSIC_DIR = os.getenv("MUSIC_DIR", "music")  # Set your music folder path here
+MUSIC_DIR = os.getenv("R:\Music", "music")  
 WAKE_WORDS = ["activate", "wake up"]
 SITES = [
     ["youtube", "youtube.com"],
@@ -43,6 +40,7 @@ SITES = [
 ]
 
 # --- Voice Engine ---
+import pyttsx3
 engine = pyttsx3.init()
 def speak(text):
     print(f"\n==> Matrix AI: {text}")
@@ -105,7 +103,7 @@ warnings.filterwarnings("ignore", message="Convert_system_message_to_human will 
 
 import re
 
-def fake_stream_and_speak(text, delay=0.12):
+def fake_stream_and_speak(text, delay=0.006):
     words = re.findall(r'\S+|\s+', text)  # Preserve spaces for natural printing
     buffer = ""
     for word in words:
@@ -120,17 +118,27 @@ def fake_stream_and_speak(text, delay=0.12):
 from prompts import chat_prompt
 
 
-def process_query_with_langgraph(query):
+MEMORY_LENGTH = 6  # Number of messages to keep in memory
+
+def update_memory(conversation_history, new_message):
+    conversation_history.append(new_message)
+    return conversation_history[-MEMORY_LENGTH:]
+
+def process_query_with_langgraph(query, conversation_history):
     graph = build_graph().compile()
     # System prompt for conversational AI
     system_prompt = (
         "You are Matrix, a friendly, helpful conversational AI assistant. "
         "Be concise, clear, and avoid unnecessary technical jargon. "
-        "Keep your responses short, easy to read, and conversational.\n"
+        "Keep your responses short, easy to read, and conversational. DO NOT GIVE LONG ANSWER WHICH WOULD TAKE LONGER TO READ ALOUD.\n"
     )
-    # Use prompts.py's chat_prompt for the user query
+    conversation_history = update_memory(conversation_history, {"user": "User", "content": query})
+    messages_block = "\n".join([
+        f"User: {msg['user']}\n{msg['content']}" if msg['user'] else msg['content']
+        for msg in conversation_history
+    ])
     user_prompt = chat_prompt(query)
-    full_prompt = f"{system_prompt}\n{user_prompt}"
+    full_prompt = f"{system_prompt}\n{messages_block}\n{user_prompt}"
     state = {
         "messages": [{"content": full_prompt}],
         "config": {"temperature": 1.0, "top_p": 0.95},
@@ -142,21 +150,35 @@ def process_query_with_langgraph(query):
     result = graph.invoke(state)
     response_text = result.get("response", "")
     if response_text:
-        # Extract short summary (first paragraph or 2 sentences)
         import re
-        paras = re.split(r'\n\s*\n|(?<=[.!?])\s+', response_text.strip())
-        short_answer = paras[0].strip() if paras else response_text.strip()
-        fake_stream_and_speak(short_answer)
-        # Offer to provide full context
-        speak("Do you want me to tell you the whole context?")
-        print("\n[Matrix AI] Do you want the full context? Say 'yes' to hear more.")
-        # If user says yes, provide the rest
-        # This requires main loop logic to listen for 'yes' and then speak the rest of the response
-        # (Implementation stub: actual listening for 'yes' would be in main loop)
-        # To be implemented: if user says yes, speak '\n'.join(paras[1:])
+        # Print Intent Analysis (if present)
+        intent_match = re.search(r"\[Intent Analysis\](.*?)(?:\n\[|$)", response_text, re.DOTALL)
+        if intent_match:
+            intent_block = intent_match.group(1).strip()
+            print("\n[Intent Analysis]\n" + intent_block + "\n")
+        # Print Decision Path (if present)
+        decision_match = re.search(r"\[Decision Path\](.*?)(?:\n\[|$)", response_text, re.DOTALL)
+        if decision_match:
+            decision_block = decision_match.group(1).strip()
+            print("\n[Decision Path]\n" + decision_block + "\n")
+        # Extract and speak only the final AI answer
+        match = re.search(r"\[Matrix AI Answer\](.*?)(?:\n\[|$)", response_text, re.DOTALL)
+        if match:
+            ai_answer = match.group(1).strip()
+        else:
+            parts = re.split(r"\[Intent Analysis\].*?\n", response_text, flags=re.DOTALL)
+            ai_answer = parts[-1].strip() if len(parts) > 1 else response_text.strip()
+        #print("\n[Matrix AI Answer]\n" + ai_answer + "\n")
+        #fake_stream_and_speak(ai_answer)
+        speak(ai_answer)
+        # Update memory with the AI answer
+        conversation_history = update_memory(conversation_history, {"user": "Matrix", "content": ai_answer})
+        return conversation_history
+
 
 def main():
-    opened_sites = []  # Track opened sites and their processes
+    opened_sites = []
+    conversation_history = []  
     #wait_for_wake_word()
     while True:
         query = listen()
@@ -191,7 +213,9 @@ def main():
             speak(f"The time is {formatted_time}")
             print(f"\n==> Matrix AI: The time is {formatted_time}\n")
         else:
-            process_query_with_langgraph(query)
+            conversation_history.append({"user": "User", "content": query})
+            process_query_with_langgraph(query, conversation_history)
+            conversation_history.append({"user": "Matrix", "content": "[Matrix AI Answer]"})  # Optionally update with real answer
 
 if __name__ == "__main__":
     main()

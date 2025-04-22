@@ -2,18 +2,14 @@ import os
 import streamlit as st
 import json
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema.messages import HumanMessage
 from langgraph.graph import END, StateGraph
 from typing import Dict, List, TypedDict, Annotated, Sequence
-import google.generativeai as genai
+from model_config import get_model_config, get_groq_client
 
 # Load environment variables
 load_dotenv()
-API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Configure Google Generative AI
-genai.configure(api_key=API_KEY)
+config = get_model_config()
+client = get_groq_client()
 
 # Define state types
 class AgentState(TypedDict):
@@ -33,45 +29,50 @@ except ImportError:
 
 # Define nodes for the graph
 def intent_analysis_node(state: AgentState) -> AgentState:
-    """Analyze user intent using prompt template"""
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro",
-        convert_system_message_to_human=True,
-        temperature=state["config"].get("temperature", 1.0),
-        top_p=state["config"].get("top_p", 0.95),
-        google_api_key=API_KEY,
-    )
+    """Analyze user intent using prompt template (GROQ Llama4)"""
     last_message = state["messages"][-1]
     prompt = intent_analysis_prompt(last_message['content'])
-    response = llm.invoke([HumanMessage(content=prompt)])
-    state["intent_analysis"] = response.content
+    completion = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": prompt}],
+        temperature=config["temperature"],
+        top_p=config["top_p"],
+        stream=True
+    )
+    # Streaming: concatenate the streamed chunks
+    response_text = ""
+    for chunk in completion:
+        response_text += chunk.choices[0].delta.content or ""
+    state["intent_analysis"] = response_text
     return state
 
 def web_search_node(state: AgentState) -> AgentState:
-    """Synthesize web search results using prompt template"""
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro",
-        convert_system_message_to_human=True,
-        temperature=state["config"].get("temperature", 1.0),
-        top_p=state["config"].get("top_p", 0.95),
-        google_api_key=API_KEY,
-    )
+    """Synthesize web search results using prompt template (GROQ Llama4)"""
     last_message = state["messages"][-1]
     search_results = state.get("web_search_results", "")
     prompt = web_search_synthesis_prompt(last_message, search_results)
-    response = llm.invoke([HumanMessage(content=prompt)])
-    state["web_search_synthesis"] = response.content
+    completion = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": prompt}],
+        temperature=config["temperature"],
+        top_p=config["top_p"],
+        max_completion_tokens=config["max_completion_tokens"],
+        stream=True,
+        stop=config["stop"]
+    )
+    # Streaming: concatenate the streamed chunks
+    response_text = ""
+    for chunk in completion:
+        response_text += chunk.choices[0].delta.content or ""
+    state["response"] = response_text
     return state
 
 def ai_processing_node(state: AgentState) -> AgentState:
-    """Process user query using AI processing prompt template, merging web search synthesis if available"""
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro",
-        convert_system_message_to_human=True,
-        temperature=state["config"].get("temperature", 1.0),
-        top_p=state["config"].get("top_p", 0.95),
-        google_api_key=API_KEY,
-    )
+    """Process user query using AI processing prompt template, merging web search synthesis if available (GROQ Llama4)"""
+    from model_config import get_groq_client, get_model_config
+    from prompts import ai_processing_prompt
+    config = get_model_config()
+    client = get_groq_client()
     last_message = state["messages"][-1]
     intent_analysis = state.get("intent_analysis", "")
     web_search_synthesis = state.get("web_search_synthesis", None)
@@ -79,8 +80,19 @@ def ai_processing_node(state: AgentState) -> AgentState:
         prompt = f"You are Matrix AI, a conversational assistant with web search capabilities.\n\nHere are synthesized web search results for the user's query:\n{web_search_synthesis}\n\nUser Query:\n{last_message}\n\nPlease provide a concise, helpful, and final answer based on both the web search and your own knowledge."
     else:
         prompt = ai_processing_prompt(last_message, intent_analysis)
-    response = llm.invoke([HumanMessage(content=prompt)])
-    state["response"] = response.content
+    completion = client.chat.completions.create(
+        model=config["model"],
+        messages=[{"role": "user", "content": prompt}],
+        temperature=config["temperature"],
+        top_p=config["top_p"],
+        max_completion_tokens=config["max_completion_tokens"],
+        stream=True,
+        stop=config["stop"]
+    )
+    response_text = ""
+    for chunk in completion:
+        response_text += chunk.choices[0].delta.content or ""
+    state["response"] = response_text
     return state
 
 def post_process(state: AgentState) -> AgentState:

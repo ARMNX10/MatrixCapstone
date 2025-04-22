@@ -1,20 +1,12 @@
 def chat_prompt(user_query: str):
     return f"""
-    1. You are Coder with the brains to think and code. i have a problem to solve and i need help. 
-    2. You give the basic code for the problem that works for sure and then follow point 5, 6, 7 below.
-    3. If it is a general query, you can skip the code follow point 8.
-
-    5. If the query below asks a code, Output only the code, no explanations.
-    6. Add a possible 2 liner explanation for the code.
-    7. write possible suggestions to improve the code, if possible
-    8. If the query is general, write a possible solution to the problem. Not more than 5 lines
-    
+    1. You are my helper to help with anything i request for , your name is Matrix.
     
     **User Query:** {user_query}
     
     
     """
-
+# prompts for fine tuning
 def intent_analysis_prompt(user_query: str):
     return f"""
     You are an intent analysis system. Your job is to analyze the user's query and determine:
