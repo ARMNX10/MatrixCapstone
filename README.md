@@ -29,6 +29,23 @@ MatrixCapstone is a voice-activated AI assistant powered by Groq's Llama 4-Scout
 
 ---
 
+## Tech Stack
+
+- **Groq Llama 4-Scout** (Groq API) — Fast, state-of-the-art large language model
+- **LangGraph** — Graph-based workflow orchestration for AI pipelines
+- **SpeechRecognition** — Voice input using Google's Speech Recognition API
+- **pyttsx3** — Text-to-speech engine
+- **pynput** — Keyboard input handling (for speech interruption)
+- **Serper API** — Web search integration
+- **Streamlit** — Web app interface
+- **WebSocket** — Real-time communication for web interface (Nodes.py)
+- **LangChain** — Modular framework for developing LLM-powered applications
+- **loguru** — Logging
+- **python-dotenv** — Environment variable management
+- **requests** — HTTP requests for APIs
+
+---
+
 ## Project Structure
 
 - `main.py`           — Command-line entry point
@@ -59,6 +76,7 @@ MatrixCapstone is a voice-activated AI assistant powered by Groq's Llama 4-Scout
    Or manually install:
    - groq (Groq Python SDK)
    - langgraph
+   - langchain
    - streamlit
    - pyttsx3
    - pynput
@@ -72,9 +90,7 @@ MatrixCapstone is a voice-activated AI assistant powered by Groq's Llama 4-Scout
    ```env
    GROQ_API_KEY=your_groq_api_key_here
    SERPER_API_KEY=your_serper_api_key_here
-   TTS_ENGINE=coqui
    ```
-
 ---
 
 ## Usage
@@ -95,7 +111,6 @@ MatrixCapstone is a voice-activated AI assistant powered by Groq's Llama 4-Scout
 ## Key Environment Variables
 - `GROQ_API_KEY` — Groq API key for Llama 4-Scout model
 - `SERPER_API_KEY` — Serper API key for web search
-- `TTS_ENGINE`     — (Optional) TTS engine (e.g., coqui)
 
 ---
 
