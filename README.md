@@ -1,6 +1,6 @@
 # MatrixCapstone: Voice-Enabled AI Assistant
 
-MatrixCapstone is a voice-activated AI assistant powered by Google's Gemini AI and a LangGraph workflow. It supports natural language queries, web search, music playback, and both terminal and web-based interfaces.
+MatrixCapstone is a voice-activated AI assistant powered by Groq's Llama 4-Scout model (via the Groq API) and a LangGraph workflow. It supports natural language queries, web search, music playback, and both terminal and web-based interfaces.
 
 ---
 
@@ -11,7 +11,7 @@ MatrixCapstone is a voice-activated AI assistant powered by Google's Gemini AI a
   - Text-to-speech with pyttsx3
   - Interruptible speech output
 - **AI Processing:**
-  - Uses Google's Gemini AI models (1.5-pro, 2.0-flash)
+  - Uses Groq's Llama 4-Scout model (fast, state-of-the-art LLM)
   - Intent analysis and reasoning with structured output
   - Decision routing between AI and web search
 - **Web Search:**
@@ -57,8 +57,7 @@ MatrixCapstone is a voice-activated AI assistant powered by Google's Gemini AI a
    pip install -r requirement.py
    ```
    Or manually install:
-   - google-generativeai==0.8.4
-   - google-ai-generativelanguage==0.6.15
+   - groq (Groq Python SDK)
    - langgraph
    - streamlit
    - pyttsx3
@@ -71,7 +70,7 @@ MatrixCapstone is a voice-activated AI assistant powered by Google's Gemini AI a
 3. **Environment Variables:**
    Create a `.env` file in the project root:
    ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
+   GROQ_API_KEY=your_groq_api_key_here
    SERPER_API_KEY=your_serper_api_key_here
    TTS_ENGINE=coqui
    ```
@@ -94,7 +93,7 @@ MatrixCapstone is a voice-activated AI assistant powered by Google's Gemini AI a
 ---
 
 ## Key Environment Variables
-- `GEMINI_API_KEY` — Google Gemini AI key
+- `GROQ_API_KEY` — Groq API key for Llama 4-Scout model
 - `SERPER_API_KEY` — Serper API key for web search
 - `TTS_ENGINE`     — (Optional) TTS engine (e.g., coqui)
 
@@ -102,7 +101,7 @@ MatrixCapstone is a voice-activated AI assistant powered by Google's Gemini AI a
 
 ## Credits
 - Built by ARMNX10
-- Powered by Google Gemini, Serper API, LangGraph, and open source Python libraries
+- Powered by Groq Llama 4-Scout, Serper API, LangGraph, and open source Python libraries
 
 ---
 
