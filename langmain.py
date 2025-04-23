@@ -42,8 +42,17 @@ SITES = [
 # --- Voice Engine ---
 import pyttsx3
 engine = pyttsx3.init()
-def speak(text):
+# Registry tokens for Microsoft voices
+VOICE_DAVID = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_DAVID_11.0'
+VOICE_MARK = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_MARK_11.0'
+engine.setProperty('voice', VOICE_DAVID)
+
+def speak(text, use_mark=False):
     print(f"\n==> Matrix AI: {text}")
+    if use_mark:
+        engine.setProperty('voice', VOICE_MARK)
+    else:
+        engine.setProperty('voice', VOICE_DAVID)
     engine.say(text)
     engine.runAndWait()
 
@@ -77,7 +86,7 @@ def wait_for_wake_word():
                 print(f"[Launcher] Heard: {text}")
                 if any(word in text for word in WAKE_WORDS):
                     print("[Launcher] Wake word detected! Launching assistant...")
-                    speak("Matrix activated. How can I help you?")
+                    speak("Matrix activated. How can I help you?", use_mark=True)
                     return
             except sr.UnknownValueError:
                 print("[Launcher] Could not understand audio.")
@@ -103,22 +112,19 @@ warnings.filterwarnings("ignore", message="Convert_system_message_to_human will 
 
 import re
 
-def fake_stream_and_speak(text, delay=0.006):
-    words = re.findall(r'\S+|\s+', text)  # Preserve spaces for natural printing
-    buffer = ""
-    for word in words:
-        print(word, end="", flush=True)
-        buffer += word
-        if word.strip():  # Only speak actual words
-            engine.say(word)
-            engine.runAndWait()
-        time.sleep(delay)
-    print("\n" + "="*50 + "\n")
+# def fake_stream(text, delay=0.006):
+#     words = re.findall(r'\S+|\s+', text)  # Preserve spaces for natural printing
+#     buffer = ""
+#     for word in words:
+#         print(word, end="", flush=True)
+#         buffer += word
+#         time.sleep(delay)
+#     print("\n" + "="*50 + "\n")
 
 from prompts import chat_prompt
 
 
-MEMORY_LENGTH = 6  # Number of messages to keep in memory
+MEMORY_LENGTH = 20  # Number of messages to keep in memory
 
 def update_memory(conversation_history, new_message):
     conversation_history.append(new_message)
@@ -152,10 +158,20 @@ def process_query_with_langgraph(query, conversation_history):
     if response_text:
         import re
         # Print Intent Analysis (if present)
-        intent_match = re.search(r"\[Intent Analysis\](.*?)(?:\n\[|$)", response_text, re.DOTALL)
-        if intent_match:
-            intent_block = intent_match.group(1).strip()
-            print("\n[Intent Analysis]\n" + intent_block + "\n")
+        import json
+        if 'intent_analysis' in result and result['intent_analysis']:
+            print(json.dumps(result['intent_analysis'], indent=2, ensure_ascii=False))
+            # Print decision_result (decision path) in one line with separator
+            if 'decision_result' in result and result['decision_result']:
+                print("=========================")
+                print(json.dumps(result['decision_result'], indent=2, ensure_ascii=False))
+        else:
+            # fallback to regex extraction if needed
+            intent_match = re.search(r"\[Intent Analysis\](.*?)(?:\n\[|$)", response_text, re.DOTALL)
+            if intent_match:
+                intent_block = intent_match.group(1).strip()
+                print(intent_block)
+
         # Print Decision Path (if present)
         decision_match = re.search(r"\[Decision Path\](.*?)(?:\n\[|$)", response_text, re.DOTALL)
         if decision_match:
@@ -168,9 +184,8 @@ def process_query_with_langgraph(query, conversation_history):
         else:
             parts = re.split(r"\[Intent Analysis\].*?\n", response_text, flags=re.DOTALL)
             ai_answer = parts[-1].strip() if len(parts) > 1 else response_text.strip()
-        #print("\n[Matrix AI Answer]\n" + ai_answer + "\n")
-        #fake_stream_and_speak(ai_answer)
-        speak(ai_answer)
+        print("\n" + "="*50 + "\n")
+        speak(ai_answer, use_mark=False)
         # Update memory with the AI answer
         conversation_history = update_memory(conversation_history, {"user": "Matrix", "content": ai_answer})
         return conversation_history
@@ -179,7 +194,7 @@ def process_query_with_langgraph(query, conversation_history):
 def main():
     opened_sites = []
     conversation_history = []  
-    #wait_for_wake_word()
+    wait_for_wake_word()
     while True:
         query = listen()
         if not query:
@@ -187,7 +202,7 @@ def main():
         if "play music" in query:
             play_random_music()
         elif "exit" in query or "quit" in query:
-            speak("Goodbye!")
+            speak("Goodbye!", use_mark=False)
             break
         
         # Website opening logic only
@@ -195,11 +210,11 @@ def main():
             site_name = query.lower().replace("open ", "").strip()
             match = next((site for site in SITES if site[0] == site_name), None)
             if match:
-                speak(f"Opening, {site_name} sir")
+                speak(f"Opening, {site_name} sir", use_mark=False)
                 proc = subprocess.Popen(["start", "", f"https://{match[1]}"], shell=True)
                 opened_sites.append({"name": site_name, "process": proc})
             else:
-                speak(f"Sorry, I can only open supported websites.")
+                speak(f"Sorry, I can only open supported websites.", use_mark=False)
             continue
 
         elif "the time" in query or "what is the time" in query:
@@ -210,8 +225,8 @@ def main():
             meridian = "AM" if hour < 12 else "PM"
             hour = hour if hour <= 12 else hour - 12
             formatted_time = f"{hour:02d}:{minute:02d} {meridian}"
-            speak(f"The time is {formatted_time}")
-            print(f"\n==> Matrix AI: The time is {formatted_time}\n")
+            speak(f"The time is {formatted_time}", use_mark=False)
+            #print(f"\n==> Matrix AI: The time is {formatted_time}\n")
         else:
             conversation_history.append({"user": "User", "content": query})
             process_query_with_langgraph(query, conversation_history)

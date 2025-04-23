@@ -1,13 +1,25 @@
 def chat_prompt(user_query: str):
     return f"""
-    1. You are my helper to help with anything i request for , your name is Matrix.
-    
+    - Respond to the user's query with a concise, clear.
+    - Keep Asnwers short and to the point.
     **User Query:** {user_query}
     
     
     """
 # prompts for fine tuning
-def intent_analysis_prompt(user_query: str):
+def format_conversation_history(conversation_history):
+    """
+    Formats the conversation history as a readable string for prompt context.
+    """
+    return "\n".join([
+        f"User: {msg['content']}" if msg['user'] == 'User' else f"Matrix: {msg['content']}"
+        for msg in conversation_history
+    ])
+
+def intent_analysis_prompt(user_query: str, conversation_history=None):
+    history_block = ""
+    if conversation_history:
+        history_block = f"Here is the recent conversation history for context:\n{format_conversation_history(conversation_history)}\n"
     return f"""
     You are an intent analysis system. Your job is to analyze the user's query and determine:
     1. The primary intent of the query
@@ -15,7 +27,9 @@ def intent_analysis_prompt(user_query: str):
     3. Whether the query is complex (multiple aspects, requires reasoning, hypothetical scenarios)
     4. Key entities mentioned in the query
     5. Main topics of the query
-
+    6. Provide an 'ai_inference' field: a brief, clear summary of what the user is asking or wants to achieve.
+    7. Provide an 'ai_reasoning' field: a concise explanation of your reasoning about the user's intent and how you arrived at your inference.
+    
     Format your response as a valid JSON object with the following structure:
     {{
       "intent": "string - brief description of primary intent",
@@ -23,7 +37,9 @@ def intent_analysis_prompt(user_query: str):
       "requires_web_search": boolean,
       "is_complex_query": boolean,
       "entities": ["list", "of", "entities"],
-      "topics": ["list", "of", "topics"]
+      "topics": ["list", "of", "topics"],
+      "ai_inference": "string - brief summary of user intent",
+      "ai_reasoning": "string - your reasoning for the inference"
     }}
 
     Guidelines:
@@ -56,17 +72,19 @@ def web_search_synthesis_prompt(user_query: str, search_results: str):
     {search_results}
     """
 
-def ai_processing_prompt(user_query: str, intent_analysis: str):
+def ai_processing_prompt(user_query: str, intent_analysis: str, conversation_history=None):
+    history_block = ""
+    if conversation_history:
+        history_block = f"Here is the recent conversation history for context:\n{format_conversation_history(conversation_history)}\n"
     return f"""
-    You are Matrix AI, an advanced AI assistant designed to provide helpful, accurate, and thoughtful responses.
-    
-    Based on the intent analysis, the user's query is complex and requires AI processing rather than web search.
-    
+    You are Matrix AI, an advanced AI assistant. Your top priority is to keep your answers as short as possible—ideally just 2-3 sentences. Only include extra details if absolutely necessary for clarity. Avoid long explanations, background, or elaboration unless specifically requested.
+
+    If you previously offered the user more details, and the user now responds affirmatively (such as "yes", "sure", etc.), you must provide those additional details, using the conversation history to determine what the user is referring to. If there was no such offer, do not provide extra information in response to a generic confirmation.
+
+    Always use the conversation history to resolve what the user is affirming or referring to, and behave as a context-aware, well-trained assistant.
+
     Intent Analysis: {intent_analysis}
-    
-    Please provide a comprehensive response that addresses all aspects of the query. Be thorough but concise.
-    If the query involves coding, provide working code examples with explanations.
-    If the query involves reasoning or analysis, provide a structured and logical response.
-    
+    {history_block}
+    Please answer the following user query as briefly and directly as possible:
     **User Query:** {user_query}
     """

@@ -15,6 +15,8 @@ class IntentAnalysisResult(TypedDict):
     is_complex_query: bool
     entities: List[str]
     topics: List[str]
+    ai_inference: str
+    ai_reasoning: str
 
 def analyze_intent(query: str) -> IntentAnalysisResult:
     """
@@ -33,6 +35,8 @@ def analyze_intent(query: str) -> IntentAnalysisResult:
         "3. Whether the query is complex (multiple aspects, requires reasoning, hypothetical scenarios)\n"
         "4. Key entities mentioned in the query\n"
         "5. Main topics of the query\n"
+        "6. Provide an 'ai_inference' field: a brief, clear summary of what the user is asking or wants to achieve.\n"
+        "7. Provide an 'ai_reasoning' field: a concise explanation of your reasoning about the user's intent and how you arrived at your inference.\n"
         "\nFormat your response as a valid JSON object with the following structure:\n"
         "{\n"
         "  \"intent\": \"string - brief description of primary intent\",\n"
@@ -40,7 +44,9 @@ def analyze_intent(query: str) -> IntentAnalysisResult:
         "  \"requires_web_search\": boolean,\n"
         "  \"is_complex_query\": boolean,\n"
         "  \"entities\": [\"list\", \"of\", \"entities\"],\n"
-        "  \"topics\": [\"list\", \"of\", \"topics\"]\n"
+        "  \"topics\": [\"list\", \"of\", \"topics\"],\n"
+        "  \"ai_inference\": \"string - brief summary of user intent\",\n"
+        "  \"ai_reasoning\": \"string - your reasoning for the inference\"\n"
         "}\n"
         "\nGuidelines:\n- Direct factual questions typically require web search\n"
         "- Questions about current events require web search\n"
@@ -71,7 +77,9 @@ def analyze_intent(query: str) -> IntentAnalysisResult:
             requires_web_search=analysis.get("requires_web_search", False),
             is_complex_query=analysis.get("is_complex_query", False),
             entities=analysis.get("entities", []),
-            topics=analysis.get("topics", [])
+            topics=analysis.get("topics", []),
+            ai_inference=analysis.get("ai_inference", analysis.get("intent", "")),
+            ai_reasoning=analysis.get("ai_reasoning", "No reasoning provided.")
         )
     except json.JSONDecodeError:
         pass
@@ -81,7 +89,9 @@ def analyze_intent(query: str) -> IntentAnalysisResult:
         requires_web_search=False,
         is_complex_query=False,
         entities=[],
-        topics=[]
+        topics=[],
+        ai_inference="",
+        ai_reasoning=""
     )
 
 
