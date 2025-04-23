@@ -1,6 +1,6 @@
-# MatrixCapstone: Voice-Enabled AI Assistant
+# Matrix: Voice-Enabled AI Assistant
 
-MatrixCapstone is a voice-activated AI assistant powered by Groq's Llama 4-Scout model (via the Groq API) and a LangGraph workflow. It supports natural language queries, web search, music playback, and both terminal and web-based interfaces.
+Matrix is a voice-activated AI assistant powered by Groq's Llama 4-Scout model (via the Groq API) and a LangGraph workflow. It supports natural language queries, web search, music playback, and both terminal and web-based interfaces.
 
 ---
 
