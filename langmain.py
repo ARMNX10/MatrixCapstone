@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langraph_app import build_graph, AgentState  # Reuse your LangGraph workflow
 import subprocess
 from interrupter import listen_for_interrupt, was_interrupted
+import datetime
 
 # --- Config ---
 load_dotenv()
@@ -135,21 +136,14 @@ def update_memory(conversation_history, new_message):
 
 # Conversational memory threading
 # Track last factual context and inject it for ambiguous follow-ups
-last_factual_context = {'topic': None, 'entities': None, 'answer': None}
+# Now handled via langmem for retrieval-augmented context
+last_factual_context = {'topic': None, 'entities': None, 'answer': None}  # legacy, still set for compatibility
 
 def process_query_with_langgraph(query):
     from langraph_app import build_graph
     import json, re
     global last_factual_context
     graph = build_graph().compile()
-    # System prompt for conversational AI
-    system_prompt = (
-        "You are Matrix, an AI assistant helping users with queries. "
-        "Be concise, clear, and avoid unnecessary technical jargon. "
-        "Keep your responses short, easy to read, and conversational. DO NOT GIVE LONG ANSWER WHICH WOULD TAKE LONGER TO READ ALOUD.\n"
-        "If the user asks to change the screen brightness, respond ONLY with the exact command in the form: 'change brightness to {number}' (e.g., 'change brightness to 70'). DO NOT say anything else. DO NOT add explanations, confirmations, or questions. Your response MUST be only the command.\n"
-        "If the user asks to change the system volume, respond ONLY with the exact command in the form: 'change system volume to {number}' (e.g., 'change system volume to 35'). DO NOT say anything else. DO NOT add explanations, confirmations, or questions. Your response MUST be only the command.\n"
-    )
     # Add user query to LangMem
     langmem.add({"type": "user_query", "content": query})
     memory_context = langmem.get_context(query, top_k=5)
@@ -159,18 +153,33 @@ def process_query_with_langgraph(query):
         "yes", "sure", "okay", "ok", "please share", "tell me more", "go on", "continue", "elaborate", "more info", "more details", "show me", "share", "what about that", "what about it", "can you explain", "explain more", "give details"
     ]
     is_ambiguous = any(phrase in query.lower() for phrase in ambiguous_phrases) and len(query.split()) <= 6
-    # Only inject context if ambiguous and we have a last factual context
+    # Retrieve last relevant memory for ambiguous/follow-up queries
     context_injected = False
-    if is_ambiguous and last_factual_context['answer']:
-        # Prepend last factual context to query
-        context_str = "[PREVIOUS CONTEXT] "
-        if last_factual_context['entities']:
-            context_str += f"Entities: {last_factual_context['entities']}. "
-        if last_factual_context['topic']:
-            context_str += f"Topic: {last_factual_context['topic']}. "
-        context_str += f"Previous Answer: {last_factual_context['answer']}\n"
-        query_for_prompt = context_str + query
-        context_injected = True
+    if is_ambiguous:
+        # Retrieve the last final AI response (not just any context)
+        last_ai_answer = None
+        for mem in reversed(langmem.memories):
+            if mem["type"] == "ai_answer":
+                last_ai_answer = mem["content"]
+                break
+        # --- Check for pending web search ---
+        pending_web_search = None
+        for mem in reversed(langmem.memories):
+            if mem["type"] == "pending_web_search":
+                pending_web_search = mem["content"]
+                break
+        if pending_web_search:
+            # Trigger web search with the pending query
+            print("[Matrix] Detected confirmation for pending web search. Proceeding to search...")
+            query_for_prompt = pending_web_search
+            context_injected = True
+            # Remove the pending_web_search memory to avoid duplicate searches
+            langmem.memories = [m for m in langmem.memories if m["type"] != "pending_web_search"]
+        elif last_ai_answer:
+            query_for_prompt = f"[Previous Answer]: {last_ai_answer}\nUser: {query}"
+            context_injected = True
+        else:
+            query_for_prompt = query
     else:
         query_for_prompt = query
 
@@ -181,6 +190,10 @@ def process_query_with_langgraph(query):
     }
     result = graph.invoke(input_state)
     response_text = result.get("response", "")
+
+    # If the AI response asks for web search confirmation, store a pending_web_search memory
+    if re.search(r"would you like me to (look up|search|find|fetch|get)", response_text, re.IGNORECASE):
+        langmem.add({"type": "pending_web_search", "content": query})
 
     # --- Parse blocks from response_text ---
     intent_block = re.search(r"\[Intent Analysis\](.*?)(?:\n\[|$)", response_text, re.DOTALL)
@@ -296,7 +309,7 @@ def process_query_with_langgraph(query):
     if intent_block:
         try:
             intent_json = json.loads(intent_block.group(1))
-            if (decision.get("path") == "web_search") or (intent_json.get("requires_web_search") is True):
+            if (decision.get("path") == "web_search") or (intent_json.get('requires_web_search') is True):
                 last_factual_context['topic'] = ', '.join(intent_json.get('topics', [])) if intent_json.get('topics') else None
                 last_factual_context['entities'] = ', '.join(intent_json.get('entities', [])) if intent_json.get('entities') else None
                 if 'ai_answer' in locals() and ai_answer:
@@ -305,12 +318,13 @@ def process_query_with_langgraph(query):
             pass
     # Save/update game or task state if needed (future: add structured state here)
     if context_injected:
-        print("[Matrix] (Injected previous context for ambiguous follow-up)")
+        print("[Matrix] (Injected relevant memory context for ambiguous/follow-up query)")
+
     return
 
 def main():
     opened_sites = []
-    #wait_for_wake_word()
+    #wait_for_wake_word()   
     while True:
         query = listen()
         if not query:
@@ -350,7 +364,8 @@ def main():
             continue
         if "play music" in query:
             play_random_music()
-        elif "exit" in query or "quit" in query:
+            continue
+        elif "exit" in query or "quit" in query or "stop matrix" in query:
             speak("Goodbye!", use_mark=False)
             break
         if query.lower().startswith("open "):
