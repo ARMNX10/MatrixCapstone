@@ -12,34 +12,34 @@ from interrupter import listen_for_interrupt, was_interrupted
 load_dotenv()
 MUSIC_DIR = os.getenv("MUSIC_DIR", r"R:\Music")
 
-WAKE_WORDS = ["activate", "wake up"]
-SITES = [
-    ["youtube", "youtube.com"],
-    ["wikipedia", "wikipedia.org"],
-    ["google", "google.com"],
-    ["whatsapp", "web.whatsapp.com"],
-    ["gmail", "mail.google.com"],
-    ["reddit", "reddit.com"],
-    ["twitter", "twitter.com"],
-    ["facebook", "facebook.com"],
-    ["instagram", "instagram.com"],
-    ["amazon", "amazon.com"],
-    ["flipkart", "flipkart.com"],
-    ["stackoverflow", "stackoverflow.com"],
-    ["github", "github.com"],
-    ["vtop", "vtop.vit.ac.in"],
-    ["vit website", "vtop.vit.ac.in"],
-    ["netflix", "netflix.com"],
-    ["prime video", "primevideo.com"],
-    ["linkedin", "linkedin.com"],
-    ["spotify", "spotify.com"],
-    ["quora", "quora.com"],
-    ["zoom", "zoom.us"],
-    ["discord", "discord.com"],
-    ["drive", "drive.google.com"],
-    ["maps", "maps.google.com"],
-    ["news", "news.google.com"],
-]
+WAKE_WORDS = ["activate", "wake up", "good morning", "good afternoon", "good evening"]
+# SITES = [
+#     ["youtube", "youtube.com"],
+#     ["wikipedia", "wikipedia.org"],
+#     ["google", "google.com"],
+#     ["whatsapp", "web.whatsapp.com"],
+#     ["gmail", "mail.google.com"],
+#     ["reddit", "reddit.com"],
+#     ["twitter", "twitter.com"],
+#     ["facebook", "facebook.com"],
+#     ["instagram", "instagram.com"],
+#     ["amazon", "amazon.com"],
+#     ["flipkart", "flipkart.com"],
+#     ["stackoverflow", "stackoverflow.com"],
+#     ["github", "github.com"],
+#     ["vtop", "vtop.vit.ac.in"],
+#     ["vit website", "vtop.vit.ac.in"],
+#     ["netflix", "netflix.com"],
+#     ["prime video", "primevideo.com"],
+#     ["linkedin", "linkedin.com"],
+#     ["spotify", "spotify.com"],
+#     ["quora", "quora.com"],
+#     ["zoom", "zoom.us"],
+#     ["discord", "discord.com"],
+#     ["drive", "drive.google.com"],
+#     ["maps", "maps.google.com"],
+#     ["news", "news.google.com"],
+# ]
 
 # --- Voice Engine ---
 import pyttsx3
