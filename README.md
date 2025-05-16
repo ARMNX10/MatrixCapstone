@@ -20,7 +20,6 @@ Matrix is a voice-activated AI assistant powered by Groq's Llama 4-Scout model (
 - **Multi-Interface:**
   - Command-line interface
   - WebSocket/web interface (Nodes.py)
-  - Streamlit web app
 - **Other Utilities:**
   - Music playback
   - Open websites by voice command
@@ -37,8 +36,6 @@ Matrix is a voice-activated AI assistant powered by Groq's Llama 4-Scout model (
 - **pyttsx3** — Text-to-speech engine
 - **pynput** — Keyboard input handling (for speech interruption)
 - **Serper API** — Web search integration
-- **Streamlit** — Web app interface
-- **WebSocket** — Real-time communication for web interface (Nodes.py)
 - **LangChain** — Modular framework for developing LLM-powered applications
 - **loguru** — Logging
 - **python-dotenv** — Environment variable management
@@ -77,7 +74,6 @@ Matrix is a voice-activated AI assistant powered by Groq's Llama 4-Scout model (
    - groq (Groq Python SDK)
    - langgraph
    - langchain
-   - streamlit
    - pyttsx3
    - pynput
    - speechrecognition
@@ -103,8 +99,6 @@ Matrix is a voice-activated AI assistant powered by Groq's Llama 4-Scout model (
   - Speak your query when prompted.
   - Say "exit" or "quit" to stop.
 
-- **Web Interface:**
-  - Run the web server (see Nodes.py or Streamlit app).
 
 ---
 

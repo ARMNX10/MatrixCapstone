@@ -1,9 +1,8 @@
 import os
-import streamlit as st
 import json
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
-from typing import Dict, List, TypedDict, Annotated, Sequence
+from typing import Dict, List, TypedDict
 from model_config import get_model_config, get_groq_client
 from decision_path import decision_path_node
 from fetch_web_search_results_node import fetch_web_search_results_node
@@ -214,59 +213,3 @@ def create_streaming_graph():
     """Create a streaming version of the graph"""
     return build_graph().compile(streaming=True)
 
-# App class for streamlit integration
-class MatrixAIApp:
-    def __init__(self):
-        self.streaming_graph = create_streaming_graph()
-        
-    def stream(self, input_data, config, stream_mode='messages'):
-        """Stream responses from the AI model"""
-        # Initialize state
-        state = {
-            "messages": input_data["messages"],
-            "config": config,
-            "response": ""
-        }
-        
-        # Stream the response
-        for chunk in self.streaming_graph.stream(state, stream_mode=stream_mode):
-            yield chunk
-
-# Initialize Streamlit app
-def init_streamlit_app():
-    """Initialize the Streamlit app"""
-    if "app" not in st.session_state:
-        st.session_state.app = MatrixAIApp()
-        
-    if "config" not in st.session_state:
-        st.session_state.config = {
-            "temperature": 1.0,
-            "top_p": 0.95,
-        }
-    
-    return st.session_state.app
-
-# Example usage in a Streamlit app
-if __name__ == "__main__":
-    st.title("Matrix AI Assistant")
-    
-    # Initialize app
-    app = init_streamlit_app()
-    
-    # Create a text input
-    user_input = st.text_input("Ask Matrix AI:")
-    
-    if user_input:
-        # Display user message
-        st.write(f"User: {user_input}")
-        
-        # Display AI response with streaming
-        st.write("Matrix AI: ")
-        response_container = st.empty()
-        full_response = ""
-        
-        # Stream the response
-        for chunk in app.stream({"messages": [user_input]}, st.session_state.config, stream_mode='messages'):
-            if "response" in chunk:
-                full_response += chunk["response"]
-                response_container.markdown(full_response)
