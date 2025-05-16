@@ -7,39 +7,40 @@ from dotenv import load_dotenv
 from langraph_app import build_graph, AgentState  # Reuse your LangGraph workflow
 import subprocess
 from interrupter import listen_for_interrupt, was_interrupted
+import datetime
 
 # --- Config ---
 load_dotenv()
 MUSIC_DIR = os.getenv("MUSIC_DIR", r"R:\Music")
 
-WAKE_WORDS = ["activate", "wake up"]
-SITES = [
-    ["youtube", "youtube.com"],
-    ["wikipedia", "wikipedia.org"],
-    ["google", "google.com"],
-    ["whatsapp", "web.whatsapp.com"],
-    ["gmail", "mail.google.com"],
-    ["reddit", "reddit.com"],
-    ["twitter", "twitter.com"],
-    ["facebook", "facebook.com"],
-    ["instagram", "instagram.com"],
-    ["amazon", "amazon.com"],
-    ["flipkart", "flipkart.com"],
-    ["stackoverflow", "stackoverflow.com"],
-    ["github", "github.com"],
-    ["vtop", "vtop.vit.ac.in"],
-    ["vit website", "vtop.vit.ac.in"],
-    ["netflix", "netflix.com"],
-    ["prime video", "primevideo.com"],
-    ["linkedin", "linkedin.com"],
-    ["spotify", "spotify.com"],
-    ["quora", "quora.com"],
-    ["zoom", "zoom.us"],
-    ["discord", "discord.com"],
-    ["drive", "drive.google.com"],
-    ["maps", "maps.google.com"],
-    ["news", "news.google.com"],
-]
+WAKE_WORDS = ["activate", "wake up", "good morning", "good afternoon", "good evening"]
+# SITES = [
+#     ["youtube", "youtube.com"],
+#     ["wikipedia", "wikipedia.org"],
+#     ["google", "google.com"],
+#     ["whatsapp", "web.whatsapp.com"],
+#     ["gmail", "mail.google.com"],
+#     ["reddit", "reddit.com"],
+#     ["twitter", "twitter.com"],
+#     ["facebook", "facebook.com"],
+#     ["instagram", "instagram.com"],
+#     ["amazon", "amazon.com"],
+#     ["flipkart", "flipkart.com"],
+#     ["stackoverflow", "stackoverflow.com"],
+#     ["github", "github.com"],
+#     ["vtop", "vtop.vit.ac.in"],
+#     ["vit website", "vtop.vit.ac.in"],
+#     ["netflix", "netflix.com"],
+#     ["prime video", "primevideo.com"],
+#     ["linkedin", "linkedin.com"],
+#     ["spotify", "spotify.com"],
+#     ["quora", "quora.com"],
+#     ["zoom", "zoom.us"],
+#     ["discord", "discord.com"],
+#     ["drive", "drive.google.com"],
+#     ["maps", "maps.google.com"],
+#     ["news", "news.google.com"],
+# ]
 
 # --- Voice Engine ---
 import pyttsx3
@@ -50,6 +51,7 @@ engine = pyttsx3.init()
 # - Mark:  HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\MSTTS_V110_enUS_MarkM
 # - Zira:  HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_EN-US_ZIRA_11.0
 VOICE_DAVID = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_DAVID_11.0'
+VOICE_MARK = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\MSTTS_V110_enUS_MarkM'
 VOICE_MARK = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\MSTTS_V110_enUS_MarkM'
 engine.setProperty('voice', VOICE_DAVID)
 
@@ -69,7 +71,17 @@ def listen():
     recognizer.energy_threshold = 150  # Lower if needed for your mic/environment
     recognizer.pause_threshold = 1.5   
     recognizer.dynamic_energy_threshold = True
+    recognizer.energy_threshold = 150  # Lower if needed for your mic/environment
+    recognizer.pause_threshold = 1.5   
+    recognizer.dynamic_energy_threshold = True
     with mic as source:
+        recognizer.adjust_for_ambient_noise(source, duration=0.8)
+        print("Listening... (speak clearly, pause briefly when done)")
+        try:
+            audio = recognizer.listen(source, timeout=None, phrase_time_limit=15)
+        except sr.WaitTimeoutError:
+            print("No speech detected. Please try again.")
+            return ""
         recognizer.adjust_for_ambient_noise(source, duration=0.8)
         print("Listening... (speak clearly, pause briefly when done)")
         try:
@@ -126,6 +138,7 @@ warnings.filterwarnings("ignore", message="Convert_system_message_to_human will 
 
 import re
 from langmem import langmem
+from langmem import langmem
 from prompts import chat_prompt
 
 
@@ -179,6 +192,7 @@ def process_query_with_langgraph(query):
         "config": {},
         "memory_context": memory_context
     }
+    result = graph.invoke(input_state)
     result = graph.invoke(input_state)
     response_text = result.get("response", "")
 
@@ -350,7 +364,8 @@ def main():
             continue
         if "play music" in query:
             play_random_music()
-        elif "exit" in query or "quit" in query:
+            continue
+        elif "exit" in query or "quit" in query or "stop matrix" in query:
             speak("Goodbye!", use_mark=False)
             break
         if query.lower().startswith("open "):
